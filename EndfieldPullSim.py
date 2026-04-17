@@ -6,17 +6,18 @@ class EndfieldGacha:
     BASE_RATE_6 = 0.008
     SOFT_PITY_START = 65
     SOFT_PITY_RAMP = 0.05
+    MAX_PITY = 80
     GUARANTEE = 120
     FREETOKEN = 240
     RATEUPRATE = 0.5
 
     #precompute prob table to avoid costly branches in loops
     prob_table = []
-    for _i in range(80):
+    for _i in range(MAX_PITY):
         if _i <= SOFT_PITY_START:
             prob_table.append(BASE_RATE_6)
         else:
-            prob_table.append(max(BASE_RATE_6 + (_i - SOFT_PITY_START) * SOFT_PITY_RAMP, _i == 79))
+            prob_table.append(max(BASE_RATE_6 + (_i - SOFT_PITY_START) * SOFT_PITY_RAMP, _i == MAX_PITY-1))
     
     prob_table = np.array(prob_table)
 
@@ -33,7 +34,40 @@ class EndfieldGacha:
         self.StartingPulls = StartingPulls
         self.TotalPulls = self.StartingPulls*np.ones(Nsims, dtype = int)
 
+    def __UpdateProbTable(self):
+        prob_table = []
+        for _i in range(EndfieldGacha.MAX_PITY):
+            if _i <= EndfieldGacha.SOFT_PITY_START:
+                prob_table.append(EndfieldGacha.BASE_RATE_6)
+            else:
+                prob_table.append(max(EndfieldGacha.BASE_RATE_6 + (_i - EndfieldGacha.SOFT_PITY_START) * EndfieldGacha.SOFT_PITY_RAMP, _i == EndfieldGacha.MAX_PITY-1))
         
+        EndfieldGacha.prob_table = np.array(prob_table)
+
+    def SetBaseRate(self, BASERATE):
+        EndfieldGacha.BASE_RATE_6 = BASERATE
+        self.__UpdateProbTable()
+
+    def SetSoftPityStart(self, SOFT_PITY_START):
+        EndfieldGacha.SOFT_PITY_START = SOFT_PITY_START
+        self.__UpdateProbTable()
+        
+    def SetSoftPityRamp(self,SOFT_PITY_RAMP):
+        EndfieldGacha.SOFT_PITY_RAMP = SOFT_PITY_RAMP
+        self.__UpdateProbTable()
+
+    def SetMaxPity(self,MAX_PITY):
+        EndfieldGacha.MAX_PITY = MAX_PITY
+        self.__UpdateProbTable()
+
+    def SetGuarantee(self, GUARANTEE):
+        EndfieldGacha.GUARANTEE = GUARANTEE
+
+    def SetFreeToken(self, FREETOKEN):
+        EndfieldGacha.FREETOKEN = FREETOKEN
+
+    def SetRateUpRate(self, RATEUPRATE):
+        EndfieldGacha.RATEUPRATE = RATEUPRATE
 
     def Pull(self):
         self.SixStarDropPity += 1
@@ -44,7 +78,7 @@ class EndfieldGacha:
         self.RateUpCopiesCount += self.TotalPulls%self.FREETOKEN == 0
 
         # --- Check 2: Roll for 6-Star ---
-        prob_6 = self.prob_table[np.minimum(self.SixStarDropPity - 1,79)]
+        prob_6 = self.prob_table[np.minimum(self.SixStarDropPity - 1,EndfieldGacha.MAX_PITY -1)]
 
         Pull = np.random.rand(self.Nsims,1)
         RateUpGet = (Pull <= prob_6*EndfieldGacha.RATEUPRATE) | (self.PullsTowardsGuarantee == EndfieldGacha.GUARANTEE)
@@ -67,7 +101,7 @@ class EndfieldGacha:
         self.RateUpCopiesCount[Indices] += self.TotalPulls[Indices]%self.FREETOKEN == 0
 
         # --- Check 2: Roll for 6-Star ---
-        prob_6 = self.prob_table[np.minimum(self.SixStarDropPity[Indices] - 1,79)]
+        prob_6 = self.prob_table[np.minimum(self.SixStarDropPity[Indices] - 1,self.MAX_PITY-1)]
 
         Pull = np.random.rand(PullsToDo,1)
         RateUpGet = (Pull <= prob_6*self.RATEUPRATE) | (self.PullsTowardsGuarantee[Indices] == self.GUARANTEE)
