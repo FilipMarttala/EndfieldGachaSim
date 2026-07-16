@@ -80,7 +80,7 @@ class EndfieldGacha:
         # --- Check 2: Roll for 6-Star ---
         prob_6 = self.prob_table[np.minimum(self.SixStarDropPity - 1,EndfieldGacha.MAX_PITY -1)]
 
-        Pull = np.random.rand(self.Nsims,1)
+        Pull = np.random.rand(self.Nsims)
         RateUpGet = (Pull <= prob_6*EndfieldGacha.RATEUPRATE) | (self.PullsTowardsGuarantee == EndfieldGacha.GUARANTEE)
         self.RateUpCopiesCount += RateUpGet
         self.RateUpAcquired += RateUpGet
@@ -112,7 +112,7 @@ class EndfieldGacha:
         self.OffBanner6StarCount[Indices] += OffRateGet
 
         self.SixStarDropPity[Indices] *= ((RateUpGet | OffRateGet) == 0)
-        
+
     def PullIfNoRateUp(self):
         self.PullSelected(np.argwhere(self.RateUpAcquired == 0))
     
@@ -123,6 +123,10 @@ class EndfieldGacha:
     def PullUntilRateUp(self):
         while(not(self.RateUpAcquired.all())):
             self.PullIfNoRateUp()
+
+    def PullUntilNRateUP(self, NRateUps):
+        while(not((self.RateUpCopiesCount >= NRateUps).all())):
+            self.PullSelected(np.argwhere(self.RateUpCopiesCount < NRateUps))
 
     def Reduce(self, op):
         return op(self.TotalPulls-self.StartingPulls), op(self.RateUpCopiesCount), op(self.OffBanner6StarCount)
